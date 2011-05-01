@@ -3,15 +3,13 @@
 #let alignment t = "%lu", (unsigned long)offsetof(struct {char x__; t (y__); }, y__)
 {-# LANGUAGE ForeignFunctionInterface, EmptyDataDecls #-}
 {-# LANGUAGE RecordWildCards #-}
-module MeCab where
+module Text.MeCab where
 import Foreign
 import Foreign.Ptr
 import Foreign.C
 import Foreign.Storable
 import Data.Word
 import Data.ByteString.Char8 hiding (elem)
-import Data.Text
-import Data.Text.Encoding
 import Control.Applicative
 
 data MeCabNode = MeCabNode { prev  :: Ptr MeCabNode
