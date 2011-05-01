@@ -1,0 +1,6 @@
+* Known Bugs
+Storable instance for MeCabNode isn't written appropriately.
+e.g. `length' field of MeCabNode is filed with strange length
+
+For now, I use c_length C-function instead.
+I'm investigating why.
