@@ -4,3 +4,6 @@ e.g. `length' field of MeCabNode is filed with strange length
 
 For now, I use c_length C-function instead.
 I'm investigating why.
+
+*TODO
+- Support N-best answers.
