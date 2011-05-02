@@ -2,14 +2,17 @@
 #include <mecab.h>
 #let alignment t = "%lu", (unsigned long)offsetof(struct {char x__; t (y__); }, y__)
 {-# LANGUAGE ForeignFunctionInterface, EmptyDataDecls #-}
-{-# LANGUAGE RecordWildCards #-}
-module Text.MeCab where
+{-# LANGUAGE RecordWildCards, DeriveDataTypeable #-}
+module Text.MeCab (Node(..), Status(..), mecab, mecabText, mecabStr) where
 import Foreign
 import Foreign.Ptr
 import Foreign.C
 import Foreign.Storable
 import Data.Word
-import Data.ByteString.Char8 hiding (elem)
+import Data.Data
+import Data.Text (Text(..), pack)
+import Data.Text.Encoding
+import Data.ByteString.Char8 hiding (elem, pack)
 import Control.Applicative
 
 data MeCabNode = MeCabNode { prev  :: Ptr MeCabNode
@@ -36,33 +39,52 @@ data MeCabNode = MeCabNode { prev  :: Ptr MeCabNode
 
 data MeCab
 
-data Status = Normal
-            | Unknown
-            | BOS
-            | EOS
-            | Other Int
-              deriving (Eq, Ord, Show, Read)
+data Status = Normal            -- ^ Known word
+            | Unknown           -- ^ Unknown word
+            | BOS               -- ^ Beginning of String
+            | EOS               -- ^ End of String
+            | Other Int         -- ^ Other Kind of Status (should not be occured)
+              deriving (Eq, Ord, Show, Read, Data, Typeable)
 
-data Node = Node { word         :: ByteString
-                 , description  :: ByteString
-                 , uniqID       :: Word
-                 , rightAttr    :: Int
-                 , leftAttr     :: Int
-                 , partOfSpeech :: Int
-                 , character    :: Int
-                 , status       :: Status
-                 , isBest       :: Bool
-                 , alphaProb    :: Float
-                 , betaProb     :: Float
-                 , probability  :: Float
-                 , wordCost     :: Int
-                 , totalCost    :: Word
-                 } deriving (Show, Eq, Ord, Read)
+data Node = Node { word         :: ByteString -- ^ Surface of the word
+                 , description  :: ByteString -- ^ Features
+                 , uniqID       :: Word       -- ^ Unique id for the word
+                 , rightAttr    :: Int        -- ^ Right context attribtue
+                 , leftAttr     :: Int        -- ^ Left context attribtue
+                 , partOfSpeech :: Int        -- ^ ID of pos
+                 , character    :: Int        -- ^ Character type
+                 , status       :: Status     -- ^ Status of the word
+                 , isBest       :: Bool       -- ^ Whether best answer or not
+                 , alphaProb    :: Float      -- ^
+                 , betaProb     :: Float      -- ^
+                 , probability  :: Float      -- ^ Occurence probability
+                 , wordCost     :: Int        -- ^ Word occurence cost
+                 , totalCost    :: Word       -- ^ Total occurence cost
+                 } deriving (Show, Eq, Ord, Read, Data, Typeable)
 
-mecab :: ByteString -> IO [Node]
-mecab str = do
-  mec <- withCString "-l1 -Ochasen" c_mecab_new2
+-- | Run MeCab with option.
+-- BOS and EOS are automatically removed from result words list.
+mecab :: String                 -- Commandline options
+      -> ByteString             -- Input paragraph (Must be encoded in UTF-8)
+      -> IO [Node]              -- Result words list
+mecab opts str = do
+  mec <- withCString opts c_mecab_new2
   ans <- toNodes =<< str `useAsCString` c_mecab mec
+  c_mecab_destroy mec
+  return ans
+
+-- | 'Text' Version of 'mecab'.
+mecabText :: String             -- Commandline options
+          -> Text               -- Input paragraph
+          -> IO [Node]          -- Result words list
+mecabText =  (. encodeUtf8) . mecab
+
+mecabStr :: String              -- Commandline options
+         -> String              -- Input paragraph
+         -> IO [Node]           -- Result words list
+mecabStr opts str = do
+  mec <- withCString opts c_mecab_new2
+  ans <- toNodes =<< unpack (encodeUtf8 (pack str)) `withCString` c_mecab mec
   c_mecab_destroy mec
   return ans
 
@@ -127,7 +149,7 @@ foreign import ccall "mecab_wrap.h cost" c_cost ::  Ptr MeCabNode -> IO Word
 
 instance Storable MeCabNode where
   sizeOf = const #size struct mecab_node_t
-  alignment _ = #{alignment mecab_node_t}
+  alignment = sizeOf 
   poke pt node = do
     (#poke struct mecab_node_t, next) pt (next node)
     (#poke struct mecab_node_t, prev) pt (prev node)

@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Main where
-import MeCab
+import Text.MeCab
 import Data.ByteString.Char8
 import Prelude hiding (getLine, putStrLn)
 import Control.Monad
