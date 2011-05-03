@@ -40,7 +40,10 @@ Build-type:          Simple
 
 -- Extra files to be distributed with the package, such as examples or
 -- a README.
-Extra-source-files:  include
+Extra-source-files:
+  include
+  include/mecab_wrap.h
+  cbits/mecab_wrap.c
 
 -- Constraint on the version of Cabal needed to build this package.
 Cabal-version:       >=1.2
@@ -62,8 +65,10 @@ Library
   -- Other-modules:       
   
   -- Extra tools (e.g. alex, hsc2hs, ...) needed to build the source.
-  Build-tools:         hsc2hs
-
+  Build-tools:         hsc2hs  
+  
+  -- Extra tools (e.g. alex, hsc2hs, ...) needed to build the source.
+  
 source-repository head
   type: git
   location: http://github.com/konn/mecab-haskell/

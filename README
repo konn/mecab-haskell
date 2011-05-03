@@ -5,5 +5,7 @@ e.g. `length' field of MeCabNode is filed with strange length
 For now, I use c_length C-function instead.
 I'm investigating why.
 
-*TODO
+* Known bugs
 - Support N-best answers.
+- Pointer becomes null when used from compiled program.
+  From ghci, it works correctly.

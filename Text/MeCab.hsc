@@ -3,7 +3,9 @@
 #let alignment t = "%lu", (unsigned long)offsetof(struct {char x__; t (y__); }, y__)
 {-# LANGUAGE ForeignFunctionInterface, EmptyDataDecls #-}
 {-# LANGUAGE RecordWildCards, DeriveDataTypeable #-}
-module Text.MeCab (Node(..), Status(..), mecab, mecabText, mecabStr) where
+module Text.MeCab (Node(..), Status(..)
+                  , mecab, mecabText, mecabStr
+                  , mecabNBest) where
 import Foreign
 import Foreign.Ptr
 import Foreign.C
@@ -12,8 +14,9 @@ import Data.Word
 import Data.Data
 import Data.Text (Text(..), pack)
 import Data.Text.Encoding
-import Data.ByteString.Char8 hiding (elem, pack)
+import Data.ByteString.Char8 hiding (elem, pack, putStrLn, init, drop)
 import Control.Applicative
+import Control.Monad
 
 data MeCabNode = MeCabNode { prev  :: Ptr MeCabNode
                            , next  :: Ptr MeCabNode
@@ -73,6 +76,16 @@ mecab opts str = do
   c_mecab_destroy mec
   return ans
 
+mecabNBest :: Int
+           -> String
+           -> ByteString
+           -> IO [[Node]]
+mecabNBest count opts input = do
+  mec <- withCString (opts ++ " -l" ++ show count) c_mecab_new2
+  ans <- toNBestNodes =<< input `useAsCString` c_mecab mec
+  c_mecab_destroy mec
+  return ans
+
 -- | 'Text' Version of 'mecab'.
 mecabText :: String             -- Commandline options
           -> Text               -- Input paragraph
@@ -95,34 +108,40 @@ toStatus 2 = BOS
 toStatus 3 = EOS
 toStatus n = Other (fromIntegral n)
 
+fromMeCabNode :: Ptr MeCabNode -> IO Node
+fromMeCabNode ptr = do
+  mnode <- peek ptr
+  leng <- c_len ptr
+  wd <- packCStringLen (surface mnode, fromIntegral leng)
+  desc <- packCString (feature mnode)
+  return Node { word = wd
+              , description = desc
+              , uniqID = fromIntegral $ identifier mnode
+              , rightAttr = fromIntegral $ rcAttr mnode
+              , leftAttr  = fromIntegral $ lcAttr mnode
+              , partOfSpeech = fromIntegral $ posid mnode
+              , character = fromIntegral $ charType mnode
+              , status = toStatus (stat mnode)
+              , isBest = best mnode == 1
+              , alphaProb = realToFrac $ alpha mnode
+              , betaProb = realToFrac $ beta mnode
+              , probability = realToFrac $ prob mnode
+              , wordCost    = fromIntegral $ wcost mnode
+              , totalCost   = fromIntegral $ cost mnode
+              }
+  
+
+toNBestNodes :: Ptr MeCabNode -> IO [[Node]]
+toNBestNodes = toNodesWith c_bnext >=> mapM (toNodesWith c_next >=> mapM fromMeCabNode)
+
 toNodes :: Ptr MeCabNode -> IO [Node]
-toNodes ptr
+toNodes = toNodesWith c_next >=> mapM fromMeCabNode
+
+toNodesWith :: (Ptr MeCabNode -> IO (Ptr MeCabNode)) -> Ptr MeCabNode -> IO [Ptr MeCabNode]
+toNodesWith nxt ptr
   | ptr == nullPtr = return []
   | otherwise      = do
-      mnode <- peek ptr
-      case stat mnode of
-        2 -> toNodes (next mnode)
-        3 -> return []
-        _ -> do
-          leng <- c_len ptr
-          wd <- packCStringLen (surface mnode, fromIntegral leng)
-          desc <- packCString (feature mnode)
-          let node = Node { word = wd
-                          , description = desc
-                          , uniqID = fromIntegral $ identifier mnode
-                          , rightAttr = fromIntegral $ rcAttr mnode
-                          , leftAttr  = fromIntegral $ lcAttr mnode
-                          , partOfSpeech = fromIntegral $ posid mnode
-                          , character = fromIntegral $ charType mnode
-                          , status = toStatus (stat mnode)
-                          , isBest = best mnode == 1
-                          , alphaProb = realToFrac $ alpha mnode
-                          , betaProb = realToFrac $ beta mnode
-                          , probability = realToFrac $ prob mnode
-                          , wordCost    = fromIntegral $ wcost mnode
-                          , totalCost   = fromIntegral $ cost mnode
-                          }
-          (node:) <$> toNodes (next mnode)
+      (ptr:) <$> (toNodesWith nxt =<< nxt ptr)
 
 foreign import ccall "mecab_new2" c_mecab_new2 :: CString -> IO (Ptr MeCab)
 foreign import ccall "mecab_destroy" c_mecab_destroy :: Ptr MeCab -> IO ()
