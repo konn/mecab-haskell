@@ -14,7 +14,7 @@ import Data.Word
 import Data.Data
 import Data.Text (Text(..), pack)
 import Data.Text.Encoding
-import Data.ByteString.Char8 hiding (elem, pack, putStrLn, init, drop)
+import Data.ByteString.Char8 hiding (elem, pack, putStrLn, tail, init, drop)
 import Control.Applicative
 import Control.Monad
 
