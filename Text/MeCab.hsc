@@ -131,11 +131,15 @@ fromMeCabNode ptr = do
               }
   
 
+tail' :: [a] -> [a]
+init' [] = []
+init' xs = tail xs
+
 toNBestNodes :: Ptr MeCabNode -> IO [[Node]]
-toNBestNodes = toNodesWith c_bnext >=> mapM (toNodesWith c_next >=> mapM fromMeCabNode)
+toNBestNodes = toNodesWith c_bnext >=> mapM toNodes
 
 toNodes :: Ptr MeCabNode -> IO [Node]
-toNodes = toNodesWith c_next >=> mapM fromMeCabNode
+toNodes = toNodesWith c_next >=> mapM fromMeCabNode . drop 1 . tail'
 
 toNodesWith :: (Ptr MeCabNode -> IO (Ptr MeCabNode)) -> Ptr MeCabNode -> IO [Ptr MeCabNode]
 toNodesWith nxt ptr
@@ -197,7 +201,7 @@ instance Storable MeCabNode where
     bnext <- (#peek struct mecab_node_t, bnext) pt
     surface <- (#peek struct mecab_node_t, surface) pt
     feature <- (#peek struct mecab_node_t, feature) pt
-    len <- (#peek struct mecab_node_t, length) pt
+    len  <- (#peek struct mecab_node_t, length) pt
     rlen <- (#peek struct mecab_node_t, rlength) pt
     identifier <- (#peek struct mecab_node_t, id) pt
     rcAttr <- (#peek struct mecab_node_t, rcAttr) pt
