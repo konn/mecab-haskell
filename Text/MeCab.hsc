@@ -132,8 +132,8 @@ fromMeCabNode ptr = do
   
 
 tail' :: [a] -> [a]
-init' [] = []
-init' xs = tail xs
+tail' [] = []
+tail' xs = tail xs
 
 toNBestNodes :: Ptr MeCabNode -> IO [[Node]]
 toNBestNodes = toNodesWith c_bnext >=> mapM toNodes
