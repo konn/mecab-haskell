@@ -131,15 +131,15 @@ fromMeCabNode ptr = do
               }
   
 
-tail' :: [a] -> [a]
-tail' [] = []
-tail' xs = tail xs
+init' :: [a] -> [a]
+init' [] = []
+init' xs = init xs
 
 toNBestNodes :: Ptr MeCabNode -> IO [[Node]]
 toNBestNodes = toNodesWith c_bnext >=> mapM toNodes
 
 toNodes :: Ptr MeCabNode -> IO [Node]
-toNodes = toNodesWith c_next >=> mapM fromMeCabNode . drop 1 . tail'
+toNodes = toNodesWith c_next >=> mapM fromMeCabNode . drop 1 . init'
 
 toNodesWith :: (Ptr MeCabNode -> IO (Ptr MeCabNode)) -> Ptr MeCabNode -> IO [Ptr MeCabNode]
 toNodesWith nxt ptr
